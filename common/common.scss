@@ -1,0 +1,46 @@
+// Data Explorer UI — 功能开关样式
+
+// ── 开关 1：结果任意断行 ──
+body.de-ui-break-all td.query-result-cell {
+  overflow-wrap: anywhere;
+}
+
+// 格式化时间单元格：优先在空格处断行（特异性高于 anywhere）
+body.de-ui-break-all td.query-result-cell[data-better-time] {
+  overflow-wrap: break-word;
+}
+
+// ── 复选框容器 ──
+.de-ui-toggles {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.de-ui-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  cursor: pointer;
+  font-size: var(--font-down-1, 0.875rem);
+  color: var(--primary);
+  white-space: nowrap;
+  user-select: none;
+
+  input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--tertiary);
+  }
+
+  &__label {
+    line-height: 1;
+  }
+
+  &:hover {
+    color: var(--primary-high);
+  }
+}
