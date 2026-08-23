@@ -1,8 +1,9 @@
 // Data Explorer UI — 功能开关样式
 
 // ── 开关 1：结果任意断行 ──
-body.de-ui-break-all td.query-result-cell {
-  overflow-wrap: anywhere;
+body.de-ui-break-all td.query-result-cell,
+body.de-ui-break-all tr.headers th {
+  overflow-wrap: anywhere !important;
 }
 
 // 格式化时间单元格：优先在空格处断行（特异性高于 anywhere）

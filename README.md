@@ -10,7 +10,7 @@
 
 | 开关 | 功能 |
 | --- | --- |
-| **强制断行** | 对 `td.query-result-cell` 启用 `overflow-wrap: anywhere`，防止长字符串撑破表格 |
+| **强制断行** | 对结果表格的单元格 `td.query-result-cell` 与表头 `tr.headers th` 启用 `overflow-wrap: anywhere`，防止长字符串撑破表格 |
 | **格式化时间** | 将 PostgreSQL timestamptz 格式（如 `2026-08-05T06:42:18.200Z`）转为浏览器本地时间 `YYYY-MM-DD HH:mm:ss`。格式化后的单元格通过 `[data-better-time]` 选择器应用 `overflow-wrap: break-word`，优先在空格处断行 |
 
 通过 `body` class 切换 CSS、`[data-better-time]` 属性选择器覆盖断行策略以及 MutationObserver 持久化守卫，两个开关均为即时生效，不受 Glimmer 组件重渲染影响。
