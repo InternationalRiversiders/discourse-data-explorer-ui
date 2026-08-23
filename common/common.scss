@@ -1,14 +1,19 @@
 // Data Explorer UI — 功能开关样式
 
 // ── 开关 1：结果任意断行 ──
-body.de-ui-break-all td.query-result-cell,
-body.de-ui-break-all tr.headers th {
+// 数据单元格：任意断行，长字符串不撑破表格
+body.de-ui-break-all td.query-result-cell {
   overflow-wrap: anywhere !important;
 }
 
-// 格式化时间单元格：优先在空格处断行（特异性高于 anywhere）
+// 格式化时间单元格：优先在空格处断行（覆盖上面的 anywhere）
 body.de-ui-break-all td.query-result-cell[data-better-time] {
-  overflow-wrap: break-word;
+  overflow-wrap: break-word !important;
+}
+
+// 表头：下划线已由 JS 替换为空格，优先在空格处断行
+body.de-ui-break-all tr.headers th {
+  overflow-wrap: break-word !important;
 }
 
 // ── 复选框容器 ──

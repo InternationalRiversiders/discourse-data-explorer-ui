@@ -19,6 +19,8 @@ const CELL_SELECTOR = "td.query-result-cell";
 const BETTER_TIME_ATTR = "data-better-time";
 const VALUE_ATTR = "data-value";
 const BREAK_ALL_CLASS = "de-ui-break-all";
+const HEADER_SELECTOR = "tr.headers th";
+const BETTER_HEADER_ATTR = "data-better-header";
 
 // ═══════════════════════════════════════
 // 全局状态（页面离开时全部重置）
@@ -76,10 +78,43 @@ function createCheckbox({ id, label, title, onChange }) {
 
 function setBreakAll(enabled) {
   document.body.classList.toggle(BREAK_ALL_CLASS, enabled);
+  if (enabled) {
+    formatHeaders();
+  } else {
+    restoreHeaders();
+  }
 }
 
 function isBreakAllEnabled() {
   return document.body.classList.contains(BREAK_ALL_CLASS);
+}
+
+// ── 表头断行优化：下划线 → 空格（存储/恢复参考「格式化时间」）──
+
+function formatHeader(th) {
+  const text = th.textContent.trim();
+  if (!text.includes("_")) return;
+  th.setAttribute(VALUE_ATTR, text);
+  th.setAttribute(BETTER_HEADER_ATTR, "");
+  th.textContent = text.replace(/_/g, " ");
+}
+
+function restoreHeader(th) {
+  th.textContent = th.getAttribute(VALUE_ATTR);
+  th.removeAttribute(VALUE_ATTR);
+  th.removeAttribute(BETTER_HEADER_ATTR);
+}
+
+function formatHeaders() {
+  document
+    .querySelectorAll(`${HEADER_SELECTOR}:not([${BETTER_HEADER_ATTR}])`)
+    .forEach(formatHeader);
+}
+
+function restoreHeaders() {
+  document
+    .querySelectorAll(`${HEADER_SELECTOR}[${BETTER_HEADER_ATTR}]`)
+    .forEach(restoreHeader);
 }
 
 // ═══════════════════════════════════════
@@ -197,6 +232,10 @@ function startPageObserver() {
         .querySelectorAll(`${CELL_SELECTOR}:not([${BETTER_TIME_ATTR}])`)
         .forEach(formatCell);
     }
+    // 守卫：开启强制断行时，新渲染的表头自动替换下划线
+    if (isBreakAllEnabled()) {
+      formatHeaders();
+    }
   });
   pageObserver.observe(root, { childList: true, subtree: true });
 }
@@ -211,6 +250,9 @@ function teardown() {
   if (dateFormatEnabled) {
     disableDateFormat();
   }
+
+  // 恢复表头下划线
+  restoreHeaders();
 
   // 恢复 break-all
   document.body.classList.remove(BREAK_ALL_CLASS);
