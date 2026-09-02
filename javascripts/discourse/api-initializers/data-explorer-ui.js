@@ -369,6 +369,23 @@ function teardown() {
 }
 
 // ═══════════════════════════════════════
+// 主题组件设置：进入页面时的开关默认值
+// （settings.yml；仅在“从其他页面进入”时应用，
+//   同页面内导航不重置用户手动勾选的状态）
+// ═══════════════════════════════════════
+
+function applyDefaultsFor(mode) {
+  if (mode === "edit") {
+    setBreakAll(settings.default_enable_break_all);
+    if (settings.default_enable_date_format) enableDateFormat();
+    else disableDateFormat();
+  } else if (mode === "list") {
+    setHideDefault(settings.default_enable_hide_default);
+    setHideAuto(settings.default_enable_hide_auto);
+  }
+}
+
+// ═══════════════════════════════════════
 // 入口
 // ═══════════════════════════════════════
 
@@ -376,10 +393,11 @@ export default apiInitializer((api) => {
   api.onPageChange(async (url) => {
     const mode = pageModeFor(url);
 
-    // 切换到另一页面时先清理上一个页面的全部状态
+    // 切换到另一页面时先清理上一个页面的全部状态，再按设置应用默认值
     if (mode !== currentPage) {
       teardown();
       currentPage = mode;
+      applyDefaultsFor(mode);
     }
 
     if (mode === "edit") {

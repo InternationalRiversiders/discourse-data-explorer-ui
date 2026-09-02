@@ -1,0 +1,22 @@
+# Data Explorer UI — 四个功能开关的默认值
+# 可在主题组件设置面板中调整；JS 在进入对应页面时读取作为开关初始状态。
+
+default_enable_break_all:
+  type: bool
+  default: false
+  description: 默认勾选查询编辑页的「强制断行」开关
+
+default_enable_date_format:
+  type: bool
+  default: false
+  description: 默认勾选查询编辑页的「格式化时间」开关
+
+default_enable_hide_default:
+  type: bool
+  default: false
+  description: 默认勾选查询列表页的「隐藏默认查询」开关
+
+default_enable_hide_auto:
+  type: bool
+  default: false
+  description: 默认勾选查询列表页的「隐藏自动查询」开关
