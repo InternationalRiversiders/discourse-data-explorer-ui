@@ -50,3 +50,17 @@ body.de-ui-break-all tr.headers th {
     color: var(--primary-high);
   }
 }
+
+// ── 查询列表页：隐藏默认 / 自动查询 ──
+// 整条规则挂在 body class 下：关闭时规则不存在、零覆盖；
+// 开启时 body 挂上 class 即隐藏对应行，无需 CSS var 间接层。
+
+// 隐藏默认查询（带 badge 徽标）
+body.de-ui-hide-default table.recent-queries > tbody > tr:has(td.--overview > a > div.query-name > span.query-badge) {
+  display: none;
+}
+
+// 隐藏自动查询（描述含 #auto#）
+body.de-ui-hide-auto table.recent-queries > tbody > tr:has(td.--overview > a > div.query-desc[title*="#auto#"]) {
+  display: none;
+}

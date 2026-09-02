@@ -1,10 +1,12 @@
 /**
  * Data Explorer UI — 主题组件初始化入口
  *
- * 仅在 Data Explorer 的 query 编辑页运行：
- *   /admin/plugins/discourse-data-explorer/queries/<id>
+ * 在 Data Explorer 的以下页面运行：
+ *   编辑页：/admin/plugins/discourse-data-explorer/queries/<id>
+ *   列表页：/admin/plugins/discourse-data-explorer/queries
  *
- * 在 .query-action-bar__left 注入功能开关（复选框）。
+ * 分别向 .query-action-bar__left 与 .d-page-subheader__title-row
+ * 注入功能开关（复选框），由 body class 切换生效。
  */
 import { apiInitializer } from "discourse/lib/api";
 
@@ -22,10 +24,16 @@ const BREAK_ALL_CLASS = "de-ui-break-all";
 const HEADER_SELECTOR = "tr.headers th";
 const BETTER_HEADER_ATTR = "data-better-header";
 
+// ── 查询列表页 ──
+const LIST_CONTAINER_SELECTOR = ".d-page-subheader__title-row";
+const HIDE_DEFAULT_CLASS = "de-ui-hide-default";
+const HIDE_AUTO_CLASS = "de-ui-hide-auto";
+
 // ═══════════════════════════════════════
 // 全局状态（页面离开时全部重置）
 // ═══════════════════════════════════════
 
+let currentPage = null; // "edit"（查询编辑页） | "list"（查询列表页） | null
 let dateFormatEnabled = false;
 let pageObserver = null;
 let toggleRefs = {};
@@ -170,6 +178,90 @@ function disableDateFormat() {
 }
 
 // ═══════════════════════════════════════
+// 查询列表页：隐藏默认 / 自动查询
+// （body class 切换 CSS var，见 common.scss）
+// ═══════════════════════════════════════
+
+// ── URL 判定 ──
+
+function isEditPage(url) {
+  return TARGET_URL_RE.test(url);
+}
+
+function isListPage(url) {
+  if (isEditPage(url)) return false;
+  const path = url.split(/[?#]/)[0].replace(/\/+$/, "");
+  return path === "/admin/plugins/discourse-data-explorer/queries";
+}
+
+/** 当前页面模式："edit" | "list" | null */
+function pageModeFor(url) {
+  if (isEditPage(url)) return "edit";
+  if (isListPage(url)) return "list";
+  return null;
+}
+
+// ── 隐藏默认查询 ──
+
+function setHideDefault(enabled) {
+  document.body.classList.toggle(HIDE_DEFAULT_CLASS, enabled);
+}
+
+function isHideDefaultEnabled() {
+  return document.body.classList.contains(HIDE_DEFAULT_CLASS);
+}
+
+// ── 隐藏自动查询 ──
+
+function setHideAuto(enabled) {
+  document.body.classList.toggle(HIDE_AUTO_CLASS, enabled);
+}
+
+function isHideAutoEnabled() {
+  return document.body.classList.contains(HIDE_AUTO_CLASS);
+}
+
+function injectListToggles() {
+  const container = document.querySelector(LIST_CONTAINER_SELECTOR);
+  if (!container) return false;
+  if (container.querySelector(".de-ui-toggles")) {
+    syncCheckboxStates();
+    return true;
+  }
+
+  const toggles = document.createElement("div");
+  toggles.className = "de-ui-toggles";
+
+  const d = createCheckbox({
+    id: "hide-default",
+    label: "隐藏默认查询",
+    title: "隐藏带默认徽标（query-badge）的查询行\n在只想看自己创建的查询时启用",
+    onChange: (enabled) => setHideDefault(enabled),
+  });
+  toggleRefs["hide-default"] = d;
+
+  const a = createCheckbox({
+    id: "hide-auto",
+    label: "隐藏自动查询",
+    title: "隐藏描述中含 #auto# 标记的自动查询行",
+    onChange: (enabled) => setHideAuto(enabled),
+  });
+  toggleRefs["hide-auto"] = a;
+
+  toggles.append(d.wrap, a.wrap);
+
+  // 放在标题 h2 之后
+  const heading = container.querySelector("h2.d-page-subheader__title");
+  if (heading) {
+    heading.insertAdjacentElement("afterend", toggles);
+  } else {
+    container.appendChild(toggles);
+  }
+  syncCheckboxStates();
+  return true;
+}
+
+// ═══════════════════════════════════════
 // 注入 & Observer
 // ═══════════════════════════════════════
 
@@ -178,9 +270,13 @@ function syncCheckboxStates() {
   if (b) b.input.checked = isBreakAllEnabled();
   const d = toggleRefs["date-format"];
   if (d) d.input.checked = dateFormatEnabled;
+  const hd = toggleRefs["hide-default"];
+  if (hd) hd.input.checked = isHideDefaultEnabled();
+  const ha = toggleRefs["hide-auto"];
+  if (ha) ha.input.checked = isHideAutoEnabled();
 }
 
-function injectToggles() {
+function injectEditToggles() {
   const container = document.querySelector(".query-action-bar__left");
   if (!container) return false;
   if (container.querySelector(".de-ui-toggles")) {
@@ -222,19 +318,26 @@ function startPageObserver() {
   if (!root) return;
 
   pageObserver = new MutationObserver(() => {
-    // 守卫：复选框被 Glimmer 抹掉后重新注入
-    if (!document.querySelector(".de-ui-toggles")) {
-      injectToggles();
-    }
-    // 守卫：新渲染的日期单元格自动格式化
-    if (dateFormatEnabled) {
-      document
-        .querySelectorAll(`${CELL_SELECTOR}:not([${BETTER_TIME_ATTR}])`)
-        .forEach(formatCell);
-    }
-    // 守卫：开启强制断行时，新渲染的表头自动替换下划线
-    if (isBreakAllEnabled()) {
-      formatHeaders();
+    if (currentPage === "edit") {
+      // 守卫：复选框被 Glimmer 抹掉后重新注入
+      if (!document.querySelector(".de-ui-toggles")) {
+        injectEditToggles();
+      }
+      // 守卫：新渲染的日期单元格自动格式化
+      if (dateFormatEnabled) {
+        document
+          .querySelectorAll(`${CELL_SELECTOR}:not([${BETTER_TIME_ATTR}])`)
+          .forEach(formatCell);
+      }
+      // 守卫：开启强制断行时，新渲染的表头自动替换下划线
+      if (isBreakAllEnabled()) {
+        formatHeaders();
+      }
+    } else if (currentPage === "list") {
+      // 守卫：复选框被 Glimmer 抹掉后重新注入
+      if (!document.querySelector(".de-ui-toggles")) {
+        injectListToggles();
+      }
     }
   });
   pageObserver.observe(root, { childList: true, subtree: true });
@@ -257,7 +360,11 @@ function teardown() {
   // 恢复 break-all
   document.body.classList.remove(BREAK_ALL_CLASS);
 
-  // 重置引用
+  // 恢复列表页隐藏开关
+  document.body.classList.remove(HIDE_DEFAULT_CLASS, HIDE_AUTO_CLASS);
+
+  // 重置页面模式与引用
+  currentPage = null;
   toggleRefs = {};
 }
 
@@ -267,13 +374,22 @@ function teardown() {
 
 export default apiInitializer((api) => {
   api.onPageChange(async (url) => {
-    if (!TARGET_URL_RE.test(url)) {
+    const mode = pageModeFor(url);
+
+    // 切换到另一页面时先清理上一个页面的全部状态
+    if (mode !== currentPage) {
       teardown();
-      return;
+      currentPage = mode;
     }
 
-    await waitForElement(".query-action-bar__left");
-    injectToggles();
-    startPageObserver();
+    if (mode === "edit") {
+      await waitForElement(".query-action-bar__left");
+      injectEditToggles();
+      startPageObserver();
+    } else if (mode === "list") {
+      await waitForElement(LIST_CONTAINER_SELECTOR);
+      injectListToggles();
+      startPageObserver();
+    }
   });
 });
