@@ -37,6 +37,8 @@ let currentPage = null; // "edit"（查询编辑页） | "list"（查询列表�
 let dateFormatEnabled = false;
 let pageObserver = null;
 let toggleRefs = {};
+let defaultTagSelected = false;
+let hideDefaultBeforeDefaultTag = false;
 
 // ═══════════════════════════════════════
 // 工具函数
@@ -202,6 +204,7 @@ function pageModeFor(url) {
 }
 
 // ── 隐藏默认查询 ──
+// 勾选后 body 挂 de-ui-hide-default，隐藏 Discourse 内置的默认查询（id < 0）。
 
 function setHideDefault(enabled) {
   document.body.classList.toggle(HIDE_DEFAULT_CLASS, enabled);
@@ -209,6 +212,44 @@ function setHideDefault(enabled) {
 
 function isHideDefaultEnabled() {
   return document.body.classList.contains(HIDE_DEFAULT_CLASS);
+}
+
+// ── 标签筛选选中 default 时，强制显示默认查询 ──
+
+function isDefaultTagSelected() {
+  return Array.from(
+    document.querySelectorAll(
+      ".query-tag-filter .d-multi-select-trigger__selected-item"
+    )
+  ).some((item) => {
+    const label = item.getAttribute("title") || item.textContent;
+    return label.trim() === "default";
+  });
+}
+
+/**
+ * 选中 default 标签时，如果继续隐藏默认查询，筛选结果必然为空；
+ * 因此强制取消「隐藏默认查询」并禁用复选框。
+ * 取消 default 标签后恢复选中前的隐藏状态。
+ */
+function syncHideDefaultWithDefaultTag() {
+  // 标签筛选尚未渲染或暂时被移除时保持现状，避免误判为“取消 default”
+  if (!document.querySelector(".query-tag-filter")) return;
+
+  const selected = isDefaultTagSelected();
+
+  if (selected !== defaultTagSelected) {
+    defaultTagSelected = selected;
+
+    if (selected) {
+      hideDefaultBeforeDefaultTag = isHideDefaultEnabled();
+      setHideDefault(false);
+    } else {
+      setHideDefault(hideDefaultBeforeDefaultTag);
+    }
+  }
+
+  syncCheckboxStates();
 }
 
 // ── 隐藏自动查询 ──
@@ -226,6 +267,7 @@ function injectListToggles() {
   if (!container) return false;
   if (container.querySelector(".de-ui-toggles")) {
     syncCheckboxStates();
+    syncHideDefaultWithDefaultTag();
     return true;
   }
 
@@ -235,7 +277,8 @@ function injectListToggles() {
   const d = createCheckbox({
     id: "hide-default",
     label: "隐藏默认查询",
-    title: "隐藏带默认徽标（query-badge）的查询行\n在只想看自己创建的查询时启用",
+    title:
+      "隐藏 Discourse 内置的默认查询\n选中 default 标签时会自动取消并禁用",
     onChange: (enabled) => setHideDefault(enabled),
   });
   toggleRefs["hide-default"] = d;
@@ -243,7 +286,7 @@ function injectListToggles() {
   const a = createCheckbox({
     id: "hide-auto",
     label: "隐藏自动查询",
-    title: "隐藏描述中含 #auto# 标记的自动查询行",
+    title: "隐藏带 auto 标签的查询行",
     onChange: (enabled) => setHideAuto(enabled),
   });
   toggleRefs["hide-auto"] = a;
@@ -258,6 +301,7 @@ function injectListToggles() {
     container.appendChild(toggles);
   }
   syncCheckboxStates();
+  syncHideDefaultWithDefaultTag();
   return true;
 }
 
@@ -271,7 +315,10 @@ function syncCheckboxStates() {
   const d = toggleRefs["date-format"];
   if (d) d.input.checked = dateFormatEnabled;
   const hd = toggleRefs["hide-default"];
-  if (hd) hd.input.checked = isHideDefaultEnabled();
+  if (hd) {
+    hd.input.checked = isHideDefaultEnabled();
+    hd.input.disabled = defaultTagSelected;
+  }
   const ha = toggleRefs["hide-auto"];
   if (ha) ha.input.checked = isHideAutoEnabled();
 }
@@ -338,6 +385,8 @@ function startPageObserver() {
       if (!document.querySelector(".de-ui-toggles")) {
         injectListToggles();
       }
+      // 标签筛选选中/取消 default 时，强制显示默认查询并禁用隐藏开关
+      syncHideDefaultWithDefaultTag();
     }
   });
   pageObserver.observe(root, { childList: true, subtree: true });
@@ -366,6 +415,8 @@ function teardown() {
   // 重置页面模式与引用
   currentPage = null;
   toggleRefs = {};
+  defaultTagSelected = false;
+  hideDefaultBeforeDefaultTag = false;
 }
 
 // ═══════════════════════════════════════
